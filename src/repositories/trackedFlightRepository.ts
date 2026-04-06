@@ -24,6 +24,8 @@ interface RawTrackedFlightRow {
   passengers: number;
   target_price: number;
   currency: string;
+  price_drop_percent: number | null;
+  initial_price: number | null;
   is_active: number;
   created_at: string;
 }
@@ -46,6 +48,8 @@ function mapTrackedFlightRow(row: RawTrackedFlightRow): TrackedFlightRow {
     passengers: row.passengers,
     target_price: Number(row.target_price),
     currency: row.currency,
+    price_drop_percent: row.price_drop_percent,
+    initial_price: row.initial_price ? Number(row.initial_price) : null,
     is_active: Boolean(row.is_active),
     created_at: row.created_at,
   };
@@ -76,6 +80,7 @@ export class TrackedFlightRepository {
         passengers,
         target_price,
         currency,
+        price_drop_percent,
         is_active,
         created_at
       )
@@ -96,6 +101,7 @@ export class TrackedFlightRepository {
         @passengers,
         @target_price,
         @currency,
+        @price_drop_percent,
         @is_active,
         @created_at
       )
@@ -118,6 +124,7 @@ export class TrackedFlightRepository {
       passengers: payload.passengers ?? 1,
       target_price: payload.target_price,
       currency: payload.currency,
+      price_drop_percent: payload.price_drop_percent ?? null,
       is_active: payload.is_active ?? true ? 1 : 0,
       created_at: payload.created_at ?? new Date().toISOString(),
     });
@@ -237,6 +244,37 @@ export class TrackedFlightRepository {
         departureDateStart,
         departureDateEnd,
       ) as RawTrackedFlightRow | undefined;
+
+    return row ? mapTrackedFlightRow(row) : null;
+  }
+
+  /**
+   * Set the initial price for a tracker (only if not already set).
+   * Returns true if updated, false if already set.
+   */
+  async setInitialPrice(flightId: string, price: number): Promise<boolean> {
+    const result = this.db
+      .prepare(`
+        UPDATE tracked_flights
+        SET initial_price = ?
+        WHERE id = ? AND initial_price IS NULL
+      `)
+      .run(price, flightId);
+
+    return result.changes > 0;
+  }
+
+  /**
+   * Get a tracked flight by ID.
+   */
+  async getTrackedFlightById(id: string): Promise<TrackedFlightRow | null> {
+    const row = this.db
+      .prepare(`
+        SELECT *
+        FROM tracked_flights
+        WHERE id = ?
+      `)
+      .get(id) as RawTrackedFlightRow | undefined;
 
     return row ? mapTrackedFlightRow(row) : null;
   }

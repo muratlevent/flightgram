@@ -12,6 +12,7 @@ import {
   parseMaxStops,
   parsePassengers,
   parsePositivePrice,
+  parsePriceDropPercent,
   parseTimeWindow,
 } from "../../services/validation.js";
 import {
@@ -38,7 +39,8 @@ export const ADD_FLIGHT_SCENE_ID = "add-flight";
  * 7. Ask departure time window - OPTIONAL
  * 8. Ask passengers - OPTIONAL
  * 9. Ask target price
- * 10. Ask currency - then create
+ * 10. Ask price drop percentage - OPTIONAL
+ * 11. Ask currency - then create
  */
 
 export function createAddFlightScene(
@@ -376,7 +378,7 @@ export function createAddFlightScene(
       return ctx.wizard.next();
     },
 
-    // Step 10: Process target price, ask currency
+    // Step 10: Process target price, ask price drop percentage
     async (ctx) => {
       const text = getMessageText(ctx);
       if (!text) {
@@ -394,6 +396,38 @@ export function createAddFlightScene(
       draft.targetPrice = targetPrice;
 
       await ctx.reply(
+        "Want to also get notified when price drops by a percentage?\n\n" +
+        "Send a percentage (e.g., 10 for 10% drop).\n" +
+        "Example: 15\n\n" +
+        "Type 'skip' to only use the target price alert."
+      );
+      return ctx.wizard.next();
+    },
+
+    // Step 11: Process price drop percentage, ask currency
+    async (ctx) => {
+      const text = getMessageText(ctx);
+      if (!text) {
+        await ctx.reply("Please send the percentage or 'skip'.");
+        return;
+      }
+
+      const draft = ctx.wizard.state as AddFlightDraft;
+
+      if (!isSkip(text)) {
+        const priceDropPercent = parsePriceDropPercent(text);
+        if (!priceDropPercent) {
+          await ctx.reply(
+            "Invalid percentage. Send a number between 1-99.\n" +
+            "Example: 15 (for 15% drop)\n" +
+            "Type 'skip' to only use the target price alert."
+          );
+          return;
+        }
+        draft.priceDropPercent = priceDropPercent;
+      }
+
+      await ctx.reply(
         `Send the 3-letter currency code.\n` +
         `Example: ${env.defaultCurrency}\n\n` +
         `Type 'skip' to use ${env.defaultCurrency}.`
@@ -401,7 +435,7 @@ export function createAddFlightScene(
       return ctx.wizard.next();
     },
 
-    // Step 11: Process currency, create flight
+    // Step 12: Process currency, create flight
     async (ctx) => {
       const text = getMessageText(ctx);
       if (!text) {
@@ -453,6 +487,7 @@ export function createAddFlightScene(
           departureTimeEnd: draft.departureTimeEnd,
           passengers: draft.passengers,
           targetPrice: draft.targetPrice,
+          priceDropPercent: draft.priceDropPercent,
           currency: currencyCode,
         });
 

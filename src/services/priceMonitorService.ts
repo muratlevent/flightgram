@@ -2,8 +2,15 @@ import type { FlightProvider } from "../providers/flightProvider.js";
 import { PriceAlertRepository } from "../repositories/priceAlertRepository.js";
 import { PriceHistoryRepository } from "../repositories/priceHistoryRepository.js";
 import { TrackedFlightRepository } from "../repositories/trackedFlightRepository.js";
+import type { TrackedFlightRow } from "../types/flight.js";
 import type { FlightSearchOptions } from "../types/flightOptions.js";
 import { TelegramNotificationService } from "./telegramNotificationService.js";
+
+interface AlertCheckResult {
+  shouldAlert: boolean;
+  reason: "target_price" | "price_drop_percent" | null;
+  percentDrop?: number;
+}
 
 export class PriceMonitorService {
   private static readonly ALERT_COOLDOWN_MS = 24 * 60 * 60 * 1_000;
@@ -133,7 +140,23 @@ export class PriceMonitorService {
       return;
     }
 
-    if (cheapestQuote.price <= Number(trackedFlight.target_price)) {
+    // Set initial price if not already set (first price check)
+    if (trackedFlight.initial_price === null) {
+      await this.trackedFlightRepository.setInitialPrice(
+        trackedFlight.id,
+        cheapestQuote.price,
+      );
+      console.info(
+        `[scheduler] Set initial price ${cheapestQuote.price} for ${trackedFlight.id}`,
+      );
+      // Update local copy for percentage check
+      trackedFlight.initial_price = cheapestQuote.price;
+    }
+
+    // Check if alert should be triggered
+    const alertCheck = this.checkAlertConditions(trackedFlight, cheapestQuote.price);
+
+    if (alertCheck.shouldAlert) {
       const shouldNotify = await this.shouldSendAlert(
         trackedFlight.id,
         cheapestQuote.price,
@@ -146,7 +169,11 @@ export class PriceMonitorService {
         return;
       }
 
-      await this.notificationService.sendPriceAlert(trackedFlight, cheapestQuote);
+      await this.notificationService.sendPriceAlert(
+        trackedFlight,
+        cheapestQuote,
+        alertCheck.reason === "price_drop_percent" ? alertCheck.percentDrop : undefined,
+      );
       await this.priceAlertRepository.recordAlert({
         flight_id: trackedFlight.id,
         provider_name: cheapestQuote.providerName,
@@ -156,6 +183,40 @@ export class PriceMonitorService {
         sent_at: cheapestQuote.checkedAt,
       });
     }
+  }
+
+  /**
+   * Check if alert conditions are met (target price OR percentage drop).
+   */
+  private checkAlertConditions(
+    trackedFlight: TrackedFlightRow,
+    currentPrice: number,
+  ): AlertCheckResult {
+    const targetPrice = Number(trackedFlight.target_price);
+
+    // Check target price first
+    if (currentPrice <= targetPrice) {
+      return { shouldAlert: true, reason: "target_price" };
+    }
+
+    // Check percentage drop if enabled and initial price is set
+    if (
+      trackedFlight.price_drop_percent !== null &&
+      trackedFlight.initial_price !== null
+    ) {
+      const initialPrice = trackedFlight.initial_price;
+      const percentDrop = ((initialPrice - currentPrice) / initialPrice) * 100;
+
+      if (percentDrop >= trackedFlight.price_drop_percent) {
+        return {
+          shouldAlert: true,
+          reason: "price_drop_percent",
+          percentDrop: Math.round(percentDrop),
+        };
+      }
+    }
+
+    return { shouldAlert: false, reason: null };
   }
 
   private async shouldSendAlert(

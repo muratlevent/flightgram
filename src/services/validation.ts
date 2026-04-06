@@ -279,3 +279,17 @@ export function isSkip(value: string): boolean {
   const normalized = value.trim().toLowerCase();
   return ['skip', 'atla', '-', 'hayır', 'no', 'n', 's'].includes(normalized);
 }
+
+/**
+ * Parse price drop percentage (1-100).
+ */
+export function parsePriceDropPercent(value: string): number | null {
+  const normalized = value.trim().replace('%', '');
+  const parsed = Number.parseInt(normalized, 10);
+
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 100) {
+    return null;
+  }
+
+  return parsed;
+}

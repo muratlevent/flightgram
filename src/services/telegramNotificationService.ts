@@ -13,6 +13,7 @@ export class TelegramNotificationService {
   async sendPriceAlert(
     flight: TrackedFlightRow,
     quote: ProviderFlightQuote,
+    percentDrop?: number,
   ): Promise<void> {
     const isDateRange =
       flight.departure_date_start !== flight.departure_date_end;
@@ -21,8 +22,16 @@ export class TelegramNotificationService {
       ? `Date range: ${flight.departure_date_start} to ${flight.departure_date_end}`
       : `Departure date: ${flight.departure_date_start}`;
 
+    // Build alert header based on trigger type
+    let alertHeader: string;
+    if (percentDrop !== undefined) {
+      alertHeader = `Price dropped ${percentDrop}%!`;
+    } else {
+      alertHeader = "Price alert triggered.";
+    }
+
     const lines = [
-      "Price alert triggered.",
+      alertHeader,
       `Route: ${formatRoute(flight.origin_code, flight.destination_code)}`,
       dateLabel,
     ];
@@ -57,6 +66,14 @@ export class TelegramNotificationService {
 
     lines.push(
       `Best price: ${formatMoney(quote.price, quote.currency)}`,
+    );
+
+    // Show initial price and percentage for percentage alerts
+    if (percentDrop !== undefined && flight.initial_price !== null) {
+      lines.push(`Initial price: ${formatMoney(flight.initial_price, flight.currency)}`);
+    }
+
+    lines.push(
       `Target price: ${formatMoney(Number(flight.target_price), flight.currency)}`,
       `Provider: ${quote.providerName}`,
     );

@@ -84,6 +84,7 @@ export class TrackedFlightService {
       departure_time_end: input.departureTimeEnd ?? null,
       passengers: input.passengers,
       target_price: input.targetPrice,
+      price_drop_percent: input.priceDropPercent ?? null,
       currency: input.currency || this.defaultCurrency,
       is_active: true,
     });

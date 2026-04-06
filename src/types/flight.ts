@@ -26,6 +26,10 @@ export interface TrackedFlightRow {
   // Price tracking
   target_price: number;
   currency: string;
+  // Percentage-based alert (1-100 or null = disabled)
+  price_drop_percent: number | null;
+  // Initial price for percentage calculation
+  initial_price: number | null;
   is_active: boolean;
   created_at: string;
 }
@@ -50,6 +54,8 @@ export interface TrackedFlightInsert {
   // Price tracking
   target_price: number;
   currency: string;
+  // Percentage-based alert (1-100 or null = disabled)
+  price_drop_percent?: number | null;
   is_active?: boolean;
   created_at?: string;
 }
@@ -101,6 +107,8 @@ export interface CreateTrackedFlightInput {
   // Price tracking
   targetPrice: number;
   currency: string;
+  // Percentage-based alert (1-100 or null = disabled)
+  priceDropPercent?: number | null;
 }
 
 export interface ProviderFlightQuote {

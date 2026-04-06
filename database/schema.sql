@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS tracked_flights (
   -- Price tracking
   target_price REAL NOT NULL CHECK (target_price > 0),
   currency TEXT NOT NULL,
+  -- Percentage-based alert (optional, 1-100)
+  price_drop_percent INTEGER CHECK (price_drop_percent IS NULL OR (price_drop_percent >= 1 AND price_drop_percent <= 100)),
+  -- Initial price recorded for percentage calculation
+  initial_price REAL CHECK (initial_price IS NULL OR initial_price > 0),
   is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   FOREIGN KEY (user_id) REFERENCES users (telegram_id) ON DELETE CASCADE,

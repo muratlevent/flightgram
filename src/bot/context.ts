@@ -18,6 +18,8 @@ export interface AddFlightDraft {
   passengers?: number;
   // Target
   targetPrice?: number;
+  // Percentage drop threshold (1-100)
+  priceDropPercent?: number;
 }
 
 export interface SearchDraft {

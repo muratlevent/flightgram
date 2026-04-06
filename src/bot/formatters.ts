@@ -63,6 +63,12 @@ export function formatTrackedFlightSummary(flight: TrackedFlightRow): string {
   }
 
   lines.push(`Target price: ${formatMoney(Number(flight.target_price), flight.currency)}`);
+
+  // Add price drop percentage if configured
+  if (flight.price_drop_percent) {
+    lines.push(`Price drop alert: ${flight.price_drop_percent}%`);
+  }
+
   lines.push(`Status: ${flight.is_active ? "Active" : "Inactive"}`);
 
   return lines.join("\n");
