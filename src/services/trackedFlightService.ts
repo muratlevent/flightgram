@@ -1,6 +1,6 @@
-import type { CreateTrackedFlightInput, TrackedFlightRow } from "../types/flight";
-import { TrackedFlightRepository } from "../repositories/trackedFlightRepository";
-import { UserRepository } from "../repositories/userRepository";
+import type { CreateTrackedFlightInput, TrackedFlightRow } from "../types/flight.js";
+import { TrackedFlightRepository } from "../repositories/trackedFlightRepository.js";
+import { UserRepository } from "../repositories/userRepository.js";
 
 export class TrackedFlightService {
   constructor(
@@ -27,6 +27,17 @@ export class TrackedFlightService {
       throw new Error("End date cannot be before start date.");
     }
 
+    // Validate return dates if provided
+    if (input.returnDateStart && input.returnDateEnd) {
+      if (input.returnDateEnd < input.returnDateStart) {
+        throw new Error("Return end date cannot be before return start date.");
+      }
+      // Return date should be after departure date
+      if (input.returnDateStart < input.departureDateStart) {
+        throw new Error("Return date cannot be before departure date.");
+      }
+    }
+
     await this.userRepository.upsertUser(input.userId, input.username);
 
     return this.trackedFlightRepository.createTrackedFlight({
@@ -35,6 +46,14 @@ export class TrackedFlightService {
       destination_code: input.destinationCode,
       departure_date_start: input.departureDateStart,
       departure_date_end: input.departureDateEnd,
+      return_date_start: input.returnDateStart ?? null,
+      return_date_end: input.returnDateEnd ?? null,
+      cabin_class: input.cabinClass,
+      max_stops: input.maxStops,
+      airlines: input.airlines ? JSON.stringify(input.airlines) : null,
+      departure_time_start: input.departureTimeStart ?? null,
+      departure_time_end: input.departureTimeEnd ?? null,
+      passengers: input.passengers,
       target_price: input.targetPrice,
       currency: input.currency || this.defaultCurrency,
       is_active: true,

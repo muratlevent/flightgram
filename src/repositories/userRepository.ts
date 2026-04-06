@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 
-import type { UserRow } from "../types/flight";
+import type { UserRow } from "../types/flight.js";
 
 export class UserRepository {
   constructor(private readonly db: Database.Database) {}

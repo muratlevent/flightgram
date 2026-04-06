@@ -4,19 +4,50 @@ import type Database from "better-sqlite3";
 import type {
   TrackedFlightInsert,
   TrackedFlightRow,
-} from "../types/flight";
+} from "../types/flight.js";
+import type { CabinClass, MaxStops } from "../types/flightOptions.js";
 
-interface RawTrackedFlightRow
-  extends Omit<TrackedFlightRow, "is_active" | "target_price"> {
-  is_active: number;
+interface RawTrackedFlightRow {
+  id: string;
+  user_id: string;
+  origin_code: string;
+  destination_code: string;
+  departure_date_start: string;
+  departure_date_end: string;
+  return_date_start: string | null;
+  return_date_end: string | null;
+  cabin_class: CabinClass;
+  max_stops: MaxStops;
+  airlines: string | null;
+  departure_time_start: string | null;
+  departure_time_end: string | null;
+  passengers: number;
   target_price: number;
+  currency: string;
+  is_active: number;
+  created_at: string;
 }
 
 function mapTrackedFlightRow(row: RawTrackedFlightRow): TrackedFlightRow {
   return {
-    ...row,
+    id: row.id,
+    user_id: row.user_id,
+    origin_code: row.origin_code,
+    destination_code: row.destination_code,
+    departure_date_start: row.departure_date_start,
+    departure_date_end: row.departure_date_end,
+    return_date_start: row.return_date_start,
+    return_date_end: row.return_date_end,
+    cabin_class: row.cabin_class,
+    max_stops: row.max_stops,
+    airlines: row.airlines,
+    departure_time_start: row.departure_time_start,
+    departure_time_end: row.departure_time_end,
+    passengers: row.passengers,
     target_price: Number(row.target_price),
+    currency: row.currency,
     is_active: Boolean(row.is_active),
+    created_at: row.created_at,
   };
 }
 
@@ -35,6 +66,14 @@ export class TrackedFlightRepository {
         destination_code,
         departure_date_start,
         departure_date_end,
+        return_date_start,
+        return_date_end,
+        cabin_class,
+        max_stops,
+        airlines,
+        departure_time_start,
+        departure_time_end,
+        passengers,
         target_price,
         currency,
         is_active,
@@ -47,6 +86,14 @@ export class TrackedFlightRepository {
         @destination_code,
         @departure_date_start,
         @departure_date_end,
+        @return_date_start,
+        @return_date_end,
+        @cabin_class,
+        @max_stops,
+        @airlines,
+        @departure_time_start,
+        @departure_time_end,
+        @passengers,
         @target_price,
         @currency,
         @is_active,
@@ -61,6 +108,14 @@ export class TrackedFlightRepository {
       destination_code: payload.destination_code,
       departure_date_start: payload.departure_date_start,
       departure_date_end: payload.departure_date_end,
+      return_date_start: payload.return_date_start ?? null,
+      return_date_end: payload.return_date_end ?? null,
+      cabin_class: payload.cabin_class ?? 'ECONOMY',
+      max_stops: payload.max_stops ?? 'ANY',
+      airlines: payload.airlines ?? null,
+      departure_time_start: payload.departure_time_start ?? null,
+      departure_time_end: payload.departure_time_end ?? null,
+      passengers: payload.passengers ?? 1,
       target_price: payload.target_price,
       currency: payload.currency,
       is_active: payload.is_active ?? true ? 1 : 0,
