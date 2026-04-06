@@ -7,6 +7,7 @@ import { PriceHistoryRepository } from "./repositories/priceHistoryRepository.js
 import { TrackedFlightRepository } from "./repositories/trackedFlightRepository.js";
 import { UserRepository } from "./repositories/userRepository.js";
 import { createPriceCheckScheduler } from "./scheduler/createPriceCheckScheduler.js";
+import { FlightSearchService } from "./services/flightSearchService.js";
 import { PriceMonitorService } from "./services/priceMonitorService.js";
 import { TelegramNotificationService } from "./services/telegramNotificationService.js";
 import { TrackedFlightService } from "./services/trackedFlightService.js";
@@ -28,9 +29,12 @@ async function main(): Promise<void> {
     timeoutMs: env.fliTimeoutMs,
   });
 
+  const flightSearchService = new FlightSearchService([fliProvider]);
+
   const bot = createBot({
     token: env.telegramBotToken,
     trackedFlightService,
+    flightSearchService,
   });
   const notificationService = new TelegramNotificationService(bot.telegram);
   const priceMonitorService = new PriceMonitorService(

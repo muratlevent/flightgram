@@ -1,23 +1,28 @@
 import { Scenes, Telegraf, session } from "telegraf";
 
+import { FlightSearchService } from "../services/flightSearchService.js";
 import { TrackedFlightService } from "../services/trackedFlightService.js";
 import type { BotContext } from "./context.js";
 import { createAddFlightScene } from "./scenes/addFlightScene.js";
 import { createDeleteFlightScene } from "./scenes/deleteFlightScene.js";
+import { createSearchScene } from "./scenes/searchScene.js";
 import { formatTrackedFlightList } from "./formatters.js";
 
 interface CreateBotOptions {
   token: string;
   trackedFlightService: TrackedFlightService;
+  flightSearchService: FlightSearchService;
 }
 
 export function createBot(options: CreateBotOptions): Telegraf<BotContext> {
   const bot = new Telegraf<BotContext>(options.token);
   const addFlightScene = createAddFlightScene(options.trackedFlightService);
   const deleteFlightScene = createDeleteFlightScene(options.trackedFlightService);
+  const searchScene = createSearchScene(options.flightSearchService);
   const stage = new Scenes.Stage<BotContext>([
     addFlightScene,
     deleteFlightScene,
+    searchScene,
   ]);
 
   bot.use(session());
@@ -32,6 +37,7 @@ export function createBot(options: CreateBotOptions): Telegraf<BotContext> {
     await ctx.reply(
       [
         "Welcome to Flightgram.",
+        "Use /search to search for flights (one-time).",
         "Use /add to create a new flight price tracker.",
         "Use /list to see your active trackers.",
         "Use /delete to remove a tracker.",
@@ -41,6 +47,8 @@ export function createBot(options: CreateBotOptions): Telegraf<BotContext> {
   });
 
   bot.command("add", async (ctx) => ctx.scene.enter("add-flight"));
+
+  bot.command("search", async (ctx) => ctx.scene.enter("search-flight"));
 
   bot.command("list", async (ctx) => {
     const trackedFlights =

@@ -20,6 +20,17 @@ export interface AddFlightDraft {
   targetPrice?: number;
 }
 
+export interface SearchDraft {
+  originCode?: string;
+  destinationCode?: string;
+  departureDate?: string;
+  // Round-trip
+  returnDate?: string;
+  // Options
+  cabinClass?: CabinClass;
+  maxStops?: MaxStops;
+}
+
 export type BotContext = Context & Scenes.WizardContext;
 
 export function getMessageText(ctx: BotContext): string | null {
