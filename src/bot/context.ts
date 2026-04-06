@@ -1,10 +1,22 @@
 import type { Context, Scenes } from "telegraf";
+import type { CabinClass, MaxStops } from "../types/flightOptions.js";
 
 export interface AddFlightDraft {
   originCode?: string;
   destinationCode?: string;
   departureDateStart?: string;
   departureDateEnd?: string;
+  // Round-trip
+  returnDateStart?: string;
+  returnDateEnd?: string;
+  // Options
+  cabinClass?: CabinClass;
+  maxStops?: MaxStops;
+  airlines?: string[];
+  departureTimeStart?: string;
+  departureTimeEnd?: string;
+  passengers?: number;
+  // Target
   targetPrice?: number;
 }
 
