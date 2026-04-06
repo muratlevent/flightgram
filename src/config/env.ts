@@ -20,6 +20,7 @@ export const env = {
   telegramBotToken: getRequiredEnv("TELEGRAM_BOT_TOKEN"),
   databasePath: getOptionalEnv("DATABASE_PATH", "./data/flightgram.db"),
   priceCheckCron: getOptionalEnv("PRICE_CHECK_CRON", "*/30 * * * *"),
+  weeklyDigestCron: getOptionalEnv("WEEKLY_DIGEST_CRON", "0 10 * * 0"), // Sunday 10:00 AM
   defaultCurrency: getOptionalEnv("DEFAULT_CURRENCY", "USD").toUpperCase(),
 
   // fli CLI configuration

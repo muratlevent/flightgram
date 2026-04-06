@@ -7,10 +7,12 @@ import { PriceHistoryRepository } from "./repositories/priceHistoryRepository.js
 import { TrackedFlightRepository } from "./repositories/trackedFlightRepository.js";
 import { UserRepository } from "./repositories/userRepository.js";
 import { createPriceCheckScheduler } from "./scheduler/createPriceCheckScheduler.js";
+import { createWeeklyDigestScheduler } from "./scheduler/createWeeklyDigestScheduler.js";
 import { FlightSearchService } from "./services/flightSearchService.js";
 import { PriceMonitorService } from "./services/priceMonitorService.js";
 import { TelegramNotificationService } from "./services/telegramNotificationService.js";
 import { TrackedFlightService } from "./services/trackedFlightService.js";
+import { WeeklyDigestService } from "./services/weeklyDigestService.js";
 
 async function main(): Promise<void> {
   const userRepository = new UserRepository(db);
@@ -52,13 +54,25 @@ async function main(): Promise<void> {
     env.priceCheckCron,
   );
 
+  const weeklyDigestService = new WeeklyDigestService(
+    trackedFlightRepository,
+    priceHistoryRepository,
+    bot.telegram,
+  );
+  const weeklyDigestScheduler = createWeeklyDigestScheduler(
+    weeklyDigestService,
+    env.weeklyDigestCron,
+  );
+
   console.info(`[bootstrap] Bot started with provider: ${fliProvider.name}`);
   console.info(`[bootstrap] Scheduler expression: ${env.priceCheckCron}`);
+  console.info(`[bootstrap] Weekly digest expression: ${env.weeklyDigestCron}`);
   console.info(`[bootstrap] SQLite database path: ${databasePath}`);
 
   const shutdown = async (signal: string): Promise<void> => {
     console.info(`[bootstrap] Received ${signal}. Shutting down.`);
     await Promise.resolve(scheduler.stop());
+    await Promise.resolve(weeklyDigestScheduler.stop());
     bot.stop(signal);
     closeDatabase();
     process.exit(0);
