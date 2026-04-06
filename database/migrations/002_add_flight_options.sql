@@ -1,10 +1,9 @@
-CREATE TABLE IF NOT EXISTS users (
-  telegram_id TEXT PRIMARY KEY,
-  username TEXT,
-  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-);
+-- Migration: Add flight search options to tracked_flights
+-- Adds support for: round-trip, cabin class, stops filter, airline filter,
+-- departure time window, and passenger count
 
-CREATE TABLE IF NOT EXISTS tracked_flights (
+-- Step 1: Create new table with all columns
+CREATE TABLE IF NOT EXISTS tracked_flights_new (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
   origin_code TEXT NOT NULL CHECK (length(origin_code) = 3),
@@ -31,34 +30,33 @@ CREATE TABLE IF NOT EXISTS tracked_flights (
   CHECK (return_date_end IS NULL OR return_date_end >= return_date_start)
 );
 
-CREATE TABLE IF NOT EXISTS price_history (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  flight_id TEXT NOT NULL,
-  provider_name TEXT NOT NULL,
-  price REAL NOT NULL CHECK (price > 0),
-  checked_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-  FOREIGN KEY (flight_id) REFERENCES tracked_flights (id) ON DELETE CASCADE
-);
+-- Step 2: Copy existing data with default values for new columns
+INSERT INTO tracked_flights_new (
+  id, user_id, origin_code, destination_code,
+  departure_date_start, departure_date_end,
+  return_date_start, return_date_end,
+  cabin_class, max_stops, airlines,
+  departure_time_start, departure_time_end, passengers,
+  target_price, currency, is_active, created_at
+)
+SELECT
+  id, user_id, origin_code, destination_code,
+  departure_date_start, departure_date_end,
+  NULL, NULL,  -- return dates (one-way by default)
+  'ECONOMY', 'ANY', NULL,  -- cabin, stops, airlines
+  NULL, NULL, 1,  -- time window, passengers
+  target_price, currency, is_active, created_at
+FROM tracked_flights;
 
-CREATE TABLE IF NOT EXISTS price_alerts (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  flight_id TEXT NOT NULL,
-  provider_name TEXT NOT NULL,
-  price REAL NOT NULL CHECK (price > 0),
-  currency TEXT NOT NULL,
-  deep_link TEXT,
-  sent_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-  FOREIGN KEY (flight_id) REFERENCES tracked_flights (id) ON DELETE CASCADE
-);
+-- Step 3: Drop old table
+DROP TABLE tracked_flights;
 
+-- Step 4: Rename new table
+ALTER TABLE tracked_flights_new RENAME TO tracked_flights;
+
+-- Step 5: Recreate indexes
 CREATE INDEX IF NOT EXISTS idx_tracked_flights_user_active
   ON tracked_flights (user_id, is_active);
 
 CREATE INDEX IF NOT EXISTS idx_tracked_flights_departure_active
   ON tracked_flights (departure_date_start, departure_date_end, is_active);
-
-CREATE INDEX IF NOT EXISTS idx_price_history_flight_checked_at
-  ON price_history (flight_id, checked_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_price_alerts_flight_sent_at
-  ON price_alerts (flight_id, sent_at DESC);
