@@ -81,4 +81,39 @@ export class PriceHistoryRepository {
 
     return row ?? null;
   }
+
+  /**
+   * Get price history for a flight over the last N days.
+   * Returns one price per day (the minimum price for that day).
+   */
+  async getPriceHistoryForFlight(
+    flightId: string,
+    days: number = 14,
+  ): Promise<Array<{ date: string; minPrice: number; maxPrice: number; avgPrice: number }>> {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    const startDateStr = startDate.toISOString();
+
+    const rows = this.db
+      .prepare(`
+        SELECT 
+          date(checked_at) as date,
+          MIN(price) as minPrice,
+          MAX(price) as maxPrice,
+          AVG(price) as avgPrice
+        FROM price_history
+        WHERE flight_id = ?
+          AND checked_at >= ?
+        GROUP BY date(checked_at)
+        ORDER BY date ASC
+      `)
+      .all(flightId, startDateStr) as Array<{
+        date: string;
+        minPrice: number;
+        maxPrice: number;
+        avgPrice: number;
+      }>;
+
+    return rows;
+  }
 }

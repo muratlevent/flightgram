@@ -9,6 +9,7 @@ import { UserRepository } from "./repositories/userRepository.js";
 import { createPriceCheckScheduler } from "./scheduler/createPriceCheckScheduler.js";
 import { createWeeklyDigestScheduler } from "./scheduler/createWeeklyDigestScheduler.js";
 import { FlightSearchService } from "./services/flightSearchService.js";
+import { PriceHistoryService } from "./services/priceHistoryService.js";
 import { PriceMonitorService } from "./services/priceMonitorService.js";
 import { TelegramNotificationService } from "./services/telegramNotificationService.js";
 import { TrackedFlightService } from "./services/trackedFlightService.js";
@@ -33,10 +34,16 @@ async function main(): Promise<void> {
 
   const flightSearchService = new FlightSearchService([fliProvider]);
 
+  const priceHistoryService = new PriceHistoryService(
+    trackedFlightRepository,
+    priceHistoryRepository,
+  );
+
   const bot = createBot({
     token: env.telegramBotToken,
     trackedFlightService,
     flightSearchService,
+    priceHistoryService,
   });
   const notificationService = new TelegramNotificationService(bot.telegram);
   const priceMonitorService = new PriceMonitorService(
