@@ -1,0 +1,16 @@
+[Unit]
+Description=Flightgram Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/flightgram
+EnvironmentFile=/opt/flightgram/.env
+ExecStart=/usr/bin/env node /opt/flightgram/dist/index.js
+Restart=always
+RestartSec=5
+User=flightgram
+Group=flightgram
+
+[Install]
+WantedBy=multi-user.target
