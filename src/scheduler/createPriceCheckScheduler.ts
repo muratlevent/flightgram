@@ -1,6 +1,6 @@
 import cron, { type ScheduledTask } from "node-cron";
 
-import { PriceMonitorService } from "../services/priceMonitorService";
+import { PriceMonitorService } from "../services/priceMonitorService.js";
 
 export function createPriceCheckScheduler(
   priceMonitorService: PriceMonitorService,

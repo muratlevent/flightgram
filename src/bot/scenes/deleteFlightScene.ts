@@ -1,9 +1,9 @@
 import { Scenes } from "telegraf";
 
-import { TrackedFlightService } from "../../services/trackedFlightService";
-import type { BotContext } from "../context";
-import { formatTrackedFlightList, formatTrackedFlightSummary } from "../formatters";
-import { getMessageText } from "../context";
+import { TrackedFlightService } from "../../services/trackedFlightService.js";
+import type { BotContext } from "../context.js";
+import { formatTrackedFlightList, formatTrackedFlightSummary } from "../formatters.js";
+import { getMessageText } from "../context.js";
 
 export const DELETE_FLIGHT_SCENE_ID = "delete-flight";
 

@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 
-import { env } from "./env";
+import { env } from "./env.js";
 
 function resolveDatabasePath(databasePath: string): string {
   if (databasePath === ":memory:") {

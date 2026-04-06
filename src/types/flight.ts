@@ -1,4 +1,4 @@
-import type { CabinClass, MaxStops } from './flightOptions';
+import type { CabinClass, MaxStops } from './flightOptions.js';
 
 export interface UserRow {
   telegram_id: string;

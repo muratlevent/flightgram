@@ -1,15 +1,15 @@
-import { createBot } from "./bot/createBot";
-import { closeDatabase, db, databasePath } from "./config/database";
-import { env } from "./config/env";
-import { FliProvider } from "./providers/fliProvider";
-import { PriceAlertRepository } from "./repositories/priceAlertRepository";
-import { PriceHistoryRepository } from "./repositories/priceHistoryRepository";
-import { TrackedFlightRepository } from "./repositories/trackedFlightRepository";
-import { UserRepository } from "./repositories/userRepository";
-import { createPriceCheckScheduler } from "./scheduler/createPriceCheckScheduler";
-import { PriceMonitorService } from "./services/priceMonitorService";
-import { TelegramNotificationService } from "./services/telegramNotificationService";
-import { TrackedFlightService } from "./services/trackedFlightService";
+import { createBot } from "./bot/createBot.js";
+import { closeDatabase, db, databasePath } from "./config/database.js";
+import { env } from "./config/env.js";
+import { FliProvider } from "./providers/fliProvider.js";
+import { PriceAlertRepository } from "./repositories/priceAlertRepository.js";
+import { PriceHistoryRepository } from "./repositories/priceHistoryRepository.js";
+import { TrackedFlightRepository } from "./repositories/trackedFlightRepository.js";
+import { UserRepository } from "./repositories/userRepository.js";
+import { createPriceCheckScheduler } from "./scheduler/createPriceCheckScheduler.js";
+import { PriceMonitorService } from "./services/priceMonitorService.js";
+import { TelegramNotificationService } from "./services/telegramNotificationService.js";
+import { TrackedFlightService } from "./services/trackedFlightService.js";
 
 async function main(): Promise<void> {
   const userRepository = new UserRepository(db);

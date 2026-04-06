@@ -1,10 +1,10 @@
 import { Scenes, Telegraf, session } from "telegraf";
 
-import { TrackedFlightService } from "../services/trackedFlightService";
-import type { BotContext } from "./context";
-import { createAddFlightScene } from "./scenes/addFlightScene";
-import { createDeleteFlightScene } from "./scenes/deleteFlightScene";
-import { formatTrackedFlightList } from "./formatters";
+import { TrackedFlightService } from "../services/trackedFlightService.js";
+import type { BotContext } from "./context.js";
+import { createAddFlightScene } from "./scenes/addFlightScene.js";
+import { createDeleteFlightScene } from "./scenes/deleteFlightScene.js";
+import { formatTrackedFlightList } from "./formatters.js";
 
 interface CreateBotOptions {
   token: string;
