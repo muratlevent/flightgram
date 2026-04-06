@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
-import type { ProviderFlightQuote } from "../types/flight";
-import type { FlightProvider } from "./flightProvider";
+import type { ProviderFlightQuote } from "../types/flight.js";
+import type { FlightSearchOptions, CabinClass, MaxStops } from "../types/flightOptions.js";
+import type { FlightProvider } from "./flightProvider.js";
 
 interface FliFlightLeg {
   departure_airport: string;
@@ -62,6 +63,7 @@ export class FliProvider implements FlightProvider {
     destination: string,
     date: string,
     currency?: string,
+    options?: FlightSearchOptions,
   ): Promise<ProviderFlightQuote | null> {
     const args = [
       "flights",
@@ -73,6 +75,51 @@ export class FliProvider implements FlightProvider {
       "--sort",
       "CHEAPEST",
     ];
+
+    // Add return date for round-trip
+    if (options?.returnDate) {
+      args.push("--return", options.returnDate);
+    }
+
+    // Add cabin class (fli uses: economy, premium-economy, business, first)
+    if (options?.cabinClass) {
+      const cabinMap: Record<CabinClass, string> = {
+        ECONOMY: "economy",
+        PREMIUM_ECONOMY: "premium-economy",
+        BUSINESS: "business",
+        FIRST: "first",
+      };
+      args.push("--class", cabinMap[options.cabinClass]);
+    }
+
+    // Add max stops (fli uses: 0 for non-stop, 1, 2)
+    if (options?.maxStops && options.maxStops !== "ANY") {
+      const stopsMap: Record<MaxStops, string> = {
+        ANY: "",
+        NON_STOP: "0",
+        ONE_STOP: "1",
+        TWO_PLUS_STOPS: "2",
+      };
+      const stopsValue = stopsMap[options.maxStops];
+      if (stopsValue) {
+        args.push("--stops", stopsValue);
+      }
+    }
+
+    // Add airline filter
+    if (options?.airlines && options.airlines.length > 0) {
+      args.push("--airlines", options.airlines.join(","));
+    }
+
+    // Add departure time window (fli uses --time HH-HH format)
+    if (options?.departureTimeWindow) {
+      args.push("--time", options.departureTimeWindow);
+    }
+
+    // Add passengers
+    if (options?.passengers && options.passengers > 1) {
+      args.push("--passengers", options.passengers.toString());
+    }
 
     try {
       const result = await this.runFliCommand(args);
@@ -92,7 +139,14 @@ export class FliProvider implements FlightProvider {
       const cheapestFlight = result.flights[0];
 
       // Build Google Flights deep link
-      const deepLink = this.buildGoogleFlightsUrl(origin, destination, date);
+      const deepLink = this.buildGoogleFlightsUrl(
+        origin,
+        destination,
+        date,
+        options?.returnDate,
+        options?.cabinClass,
+        options?.passengers,
+      );
 
       return {
         providerName: this.name,
@@ -101,6 +155,7 @@ export class FliProvider implements FlightProvider {
         checkedAt: new Date().toISOString(),
         deepLink,
         departureDate: date,
+        returnDate: options?.returnDate,
       };
     } catch (error) {
       if (error instanceof Error) {
@@ -118,6 +173,7 @@ export class FliProvider implements FlightProvider {
     startDate: string,
     endDate: string,
     currency?: string,
+    options?: FlightSearchOptions,
   ): Promise<ProviderFlightQuote | null> {
     const dates = this.getDateRange(startDate, endDate);
 
@@ -127,7 +183,7 @@ export class FliProvider implements FlightProvider {
 
     // If only one date, use the single-date method
     if (dates.length === 1) {
-      return this.getCheapestFlight(origin, destination, dates[0], currency);
+      return this.getCheapestFlight(origin, destination, dates[0], currency, options);
     }
 
     console.log(
@@ -142,7 +198,7 @@ export class FliProvider implements FlightProvider {
       const batch = dates.slice(i, i + concurrencyLimit);
       const batchResults = await Promise.allSettled(
         batch.map((date) =>
-          this.getCheapestFlight(origin, destination, date, currency),
+          this.getCheapestFlight(origin, destination, date, currency, options),
         ),
       );
 
@@ -271,9 +327,36 @@ export class FliProvider implements FlightProvider {
     origin: string,
     destination: string,
     date: string,
+    returnDate?: string,
+    cabinClass?: CabinClass,
+    passengers?: number,
   ): string {
-    // Google Flights URL format
-    const formattedDate = date.replace(/-/g, "-");
-    return `https://www.google.com/travel/flights?q=Flights%20to%20${destination}%20from%20${origin}%20on%20${formattedDate}`;
+    // Google Flights URL format with more parameters
+    const params = new URLSearchParams();
+    
+    // Build the query string
+    let query = `Flights to ${destination} from ${origin} on ${date}`;
+    if (returnDate) {
+      query += ` return ${returnDate}`;
+    }
+    params.set("q", query);
+
+    // Add cabin class (Google Flights: 1=Economy, 2=Premium Economy, 3=Business, 4=First)
+    if (cabinClass) {
+      const tfsMap: Record<CabinClass, string> = {
+        ECONOMY: "1",
+        PREMIUM_ECONOMY: "2",
+        BUSINESS: "3",
+        FIRST: "4",
+      };
+      params.set("tfs", tfsMap[cabinClass]);
+    }
+
+    // Add passengers
+    if (passengers && passengers > 1) {
+      params.set("px", passengers.toString());
+    }
+
+    return `https://www.google.com/travel/flights?${params.toString()}`;
   }
 }

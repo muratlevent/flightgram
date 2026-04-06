@@ -1,4 +1,5 @@
-import type { ProviderFlightQuote } from "../types/flight";
+import type { ProviderFlightQuote } from "../types/flight.js";
+import type { FlightSearchOptions } from "../types/flightOptions.js";
 
 export interface FlightProvider {
   readonly name: string;
@@ -11,6 +12,7 @@ export interface FlightProvider {
     destination: string,
     date: string,
     currency?: string,
+    options?: FlightSearchOptions,
   ): Promise<ProviderFlightQuote | null>;
 
   /**
@@ -23,5 +25,6 @@ export interface FlightProvider {
     startDate: string,
     endDate: string,
     currency?: string,
+    options?: FlightSearchOptions,
   ): Promise<ProviderFlightQuote | null>;
 }
