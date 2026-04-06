@@ -1,5 +1,5 @@
-import type { ProviderFlightQuote } from "../types/flight.js";
-import type { FlightSearchOptions } from "../types/flightOptions.js";
+import type { CheapestDatesResult, ProviderFlightQuote } from "../types/flight.js";
+import type { FlightSearchOptions, CheapestDatesOptions } from "../types/flightOptions.js";
 
 export interface FlightProvider {
   readonly name: string;
@@ -27,4 +27,17 @@ export interface FlightProvider {
     currency?: string,
     options?: FlightSearchOptions,
   ): Promise<ProviderFlightQuote | null>;
+
+  /**
+   * Find cheapest dates in a range using optimized date search.
+   * Returns multiple date options sorted by price.
+   */
+  getCheapestDates?(
+    origin: string,
+    destination: string,
+    startDate: string,
+    endDate: string,
+    currency?: string,
+    options?: CheapestDatesOptions,
+  ): Promise<CheapestDatesResult | null>;
 }

@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
-import type { ProviderFlightQuote } from "../types/flight.js";
-import type { FlightSearchOptions, CabinClass, MaxStops } from "../types/flightOptions.js";
+import type { CheapestDatesResult, ProviderFlightQuote } from "../types/flight.js";
+import type { FlightSearchOptions, CheapestDatesOptions, CabinClass, MaxStops } from "../types/flightOptions.js";
 import type { FlightProvider } from "./flightProvider.js";
 
 interface FliFlightLeg {
@@ -25,6 +25,23 @@ interface FliSearchResponse {
   flights: FliFlight[];
   count: number;
   trip_type: string;
+  error?: string;
+}
+
+/**
+ * Response from `fli dates` command
+ */
+interface FliDateOption {
+  departure_date: string;
+  return_date?: string;
+  price: number;
+  currency: string;
+}
+
+interface FliDatesResponse {
+  success: boolean;
+  dates: FliDateOption[];
+  count: number;
   error?: string;
 }
 
@@ -305,6 +322,176 @@ export class FliProvider implements FlightProvider {
           resolve(result);
         } catch {
           reject(new Error(`Failed to parse fli output: ${stdout}`));
+        }
+      });
+
+      process.on("error", (err) => {
+        clearTimeout(timeoutId);
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+          reject(
+            new Error(
+              "fli CLI not found. Install it with: pipx install flights",
+            ),
+          );
+        } else {
+          reject(err);
+        }
+      });
+    });
+  }
+
+  async getCheapestDates(
+    origin: string,
+    destination: string,
+    startDate: string,
+    endDate: string,
+    currency?: string,
+    options?: CheapestDatesOptions,
+  ): Promise<CheapestDatesResult | null> {
+    const args = [
+      "dates",
+      origin.toUpperCase(),
+      destination.toUpperCase(),
+      "--from",
+      startDate,
+      "--to",
+      endDate,
+      "--format",
+      "json",
+      "--sort",  // Sort by price (cheapest first)
+    ];
+
+    // Add round-trip flag and duration
+    if (options?.isRoundTrip) {
+      args.push("--round");
+      if (options.tripDuration && options.tripDuration > 0) {
+        args.push("--duration", options.tripDuration.toString());
+      }
+    }
+
+    // Add cabin class
+    if (options?.cabinClass) {
+      const cabinMap: Record<CabinClass, string> = {
+        ECONOMY: "economy",
+        PREMIUM_ECONOMY: "premium-economy",
+        BUSINESS: "business",
+        FIRST: "first",
+      };
+      args.push("--class", cabinMap[options.cabinClass]);
+    }
+
+    // Add max stops
+    if (options?.maxStops && options.maxStops !== "ANY") {
+      const stopsMap: Record<MaxStops, string> = {
+        ANY: "",
+        NON_STOP: "0",
+        ONE_STOP: "1",
+        TWO_PLUS_STOPS: "2",
+      };
+      const stopsValue = stopsMap[options.maxStops];
+      if (stopsValue) {
+        args.push("--stops", stopsValue);
+      }
+    }
+
+    // Add airline filter
+    if (options?.airlines && options.airlines.length > 0) {
+      args.push("--airlines", options.airlines.join(","));
+    }
+
+    // Add departure time window
+    if (options?.departureTimeWindow) {
+      args.push("--time", options.departureTimeWindow);
+    }
+
+    // Add passengers
+    if (options?.passengers && options.passengers > 1) {
+      args.push("--passengers", options.passengers.toString());
+    }
+
+    try {
+      const result = await this.runFliDatesCommand(args);
+
+      if (!result.success) {
+        console.error(`[fli] Dates search failed: ${result.error}`);
+        return null;
+      }
+
+      if (!result.dates || result.dates.length === 0) {
+        console.log(
+          `[fli] No dates found for ${origin} -> ${destination} (${startDate} to ${endDate})`,
+        );
+        return null;
+      }
+
+      // Apply limit if specified
+      const limit = options?.limit ?? 10;
+      const limitedDates = result.dates.slice(0, limit);
+
+      return {
+        providerName: this.name,
+        options: limitedDates.map((d) => ({
+          departureDate: d.departure_date,
+          returnDate: d.return_date,
+          price: d.price,
+          currency: d.currency || currency || this.currency,
+        })),
+        checkedAt: new Date().toISOString(),
+      };
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error(`[fli] Dates error: ${error.message}`);
+      } else {
+        console.error(`[fli] Unknown dates error:`, error);
+      }
+      return null;
+    }
+  }
+
+  private runFliDatesCommand(args: string[]): Promise<FliDatesResponse> {
+    return new Promise((resolve, reject) => {
+      const process = spawn(this.fliPath, args, {
+        stdio: ["ignore", "pipe", "pipe"],
+        timeout: this.timeoutMs,
+      });
+
+      let stdout = "";
+      let stderr = "";
+
+      process.stdout.on("data", (data: Buffer) => {
+        stdout += data.toString();
+      });
+
+      process.stderr.on("data", (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      const timeoutId = setTimeout(() => {
+        process.kill("SIGTERM");
+        reject(new Error(`fli dates command timed out after ${this.timeoutMs}ms`));
+      }, this.timeoutMs);
+
+      process.on("close", (code) => {
+        clearTimeout(timeoutId);
+
+        if (code !== 0) {
+          if (stderr.includes("command not found") || stderr.includes("not found")) {
+            reject(
+              new Error(
+                "fli CLI not found. Install it with: pipx install flights",
+              ),
+            );
+            return;
+          }
+          reject(new Error(`fli dates exited with code ${code}: ${stderr}`));
+          return;
+        }
+
+        try {
+          const result = JSON.parse(stdout) as FliDatesResponse;
+          resolve(result);
+        } catch {
+          reject(new Error(`Failed to parse fli dates output: ${stdout}`));
         }
       });
 

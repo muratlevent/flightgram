@@ -114,3 +114,22 @@ export interface ProviderFlightQuote {
   /** Return date for round-trip flights */
   returnDate?: string;
 }
+
+/**
+ * A single date option from cheapest dates search.
+ */
+export interface CheapestDateOption {
+  departureDate: string;
+  returnDate?: string;
+  price: number;
+  currency: string;
+}
+
+/**
+ * Result from cheapest dates search across a date range.
+ */
+export interface CheapestDatesResult {
+  providerName: string;
+  options: CheapestDateOption[];
+  checkedAt: string;
+}

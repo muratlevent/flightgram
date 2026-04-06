@@ -1,6 +1,6 @@
 import type { FlightProvider } from "../providers/flightProvider.js";
-import type { ProviderFlightQuote } from "../types/flight.js";
-import type { FlightSearchOptions } from "../types/flightOptions.js";
+import type { CheapestDatesResult, ProviderFlightQuote } from "../types/flight.js";
+import type { CheapestDatesOptions, FlightSearchOptions } from "../types/flightOptions.js";
 
 export interface SearchResult {
   quotes: ProviderFlightQuote[];
@@ -104,5 +104,46 @@ export class FlightSearchService {
     );
 
     return { quotes, cheapest };
+  }
+
+  /**
+   * Find cheapest dates in a range using optimized date search.
+   */
+  async searchCheapestDates(
+    origin: string,
+    destination: string,
+    startDate: string,
+    endDate: string,
+    currency: string,
+    options?: CheapestDatesOptions,
+  ): Promise<CheapestDatesResult | null> {
+    // Try each provider that supports getCheapestDates
+    for (const provider of this.providers) {
+      if (!provider.getCheapestDates) {
+        continue;
+      }
+
+      try {
+        const result = await provider.getCheapestDates(
+          origin,
+          destination,
+          startDate,
+          endDate,
+          currency,
+          options,
+        );
+
+        if (result && result.options.length > 0) {
+          return result;
+        }
+      } catch (error) {
+        console.error(
+          `[search] Provider ${provider.name} cheapest dates failed`,
+          error,
+        );
+      }
+    }
+
+    return null;
   }
 }

@@ -31,6 +31,19 @@ export interface SearchDraft {
   maxStops?: MaxStops;
 }
 
+export interface CheapestDatesDraft {
+  originCode?: string;
+  destinationCode?: string;
+  startDate?: string;
+  endDate?: string;
+  // Round-trip
+  isRoundTrip?: boolean;
+  tripDuration?: number;
+  // Options
+  cabinClass?: CabinClass;
+  maxStops?: MaxStops;
+}
+
 export type BotContext = Context & Scenes.WizardContext;
 
 export function getMessageText(ctx: BotContext): string | null {

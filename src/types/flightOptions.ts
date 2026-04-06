@@ -49,6 +49,23 @@ export interface FlightSearchOptions {
 }
 
 /**
+ * Options for cheapest dates search
+ */
+export interface CheapestDatesOptions {
+  /** Round-trip search */
+  isRoundTrip?: boolean;
+  /** Trip duration in days (for round-trip) */
+  tripDuration?: number;
+  cabinClass?: CabinClass;
+  maxStops?: MaxStops;
+  airlines?: string[];
+  departureTimeWindow?: string;  // "06-20" format
+  passengers?: number;
+  /** Maximum number of results to return */
+  limit?: number;
+}
+
+/**
  * Check if a value is a valid CabinClass
  */
 export function isCabinClass(value: string): value is CabinClass {
