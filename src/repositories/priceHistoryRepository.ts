@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 
-import type { PriceHistoryInsert } from "../types/flight";
+import type { PriceHistoryInsert } from "../types/flight.js";
 
 export class PriceHistoryRepository {
   constructor(private readonly db: Database.Database) {}

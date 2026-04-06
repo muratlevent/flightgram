@@ -1,8 +1,9 @@
-import type { FlightProvider } from "../providers/flightProvider";
-import { PriceAlertRepository } from "../repositories/priceAlertRepository";
-import { PriceHistoryRepository } from "../repositories/priceHistoryRepository";
-import { TrackedFlightRepository } from "../repositories/trackedFlightRepository";
-import { TelegramNotificationService } from "./telegramNotificationService";
+import type { FlightProvider } from "../providers/flightProvider.js";
+import { PriceAlertRepository } from "../repositories/priceAlertRepository.js";
+import { PriceHistoryRepository } from "../repositories/priceHistoryRepository.js";
+import { TrackedFlightRepository } from "../repositories/trackedFlightRepository.js";
+import type { FlightSearchOptions } from "../types/flightOptions.js";
+import { TelegramNotificationService } from "./telegramNotificationService.js";
 
 export class PriceMonitorService {
   private static readonly ALERT_COOLDOWN_MS = 24 * 60 * 60 * 1_000;
@@ -32,6 +33,41 @@ export class PriceMonitorService {
       ReturnType<TrackedFlightRepository["listAllActiveFlights"]>
     >[number],
   ): Promise<void> {
+    // Build search options from tracked flight
+    const searchOptions: FlightSearchOptions = {};
+
+    // For round-trip, use the first return date (we search one date at a time)
+    if (trackedFlight.return_date_start) {
+      searchOptions.returnDate = trackedFlight.return_date_start;
+    }
+
+    if (trackedFlight.cabin_class && trackedFlight.cabin_class !== "ECONOMY") {
+      searchOptions.cabinClass = trackedFlight.cabin_class;
+    }
+
+    if (trackedFlight.max_stops && trackedFlight.max_stops !== "ANY") {
+      searchOptions.maxStops = trackedFlight.max_stops;
+    }
+
+    if (trackedFlight.airlines) {
+      try {
+        const airlineList = JSON.parse(trackedFlight.airlines) as string[];
+        if (airlineList.length > 0) {
+          searchOptions.airlines = airlineList;
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    }
+
+    if (trackedFlight.departure_time_start && trackedFlight.departure_time_end) {
+      searchOptions.departureTimeWindow = `${trackedFlight.departure_time_start}-${trackedFlight.departure_time_end}`;
+    }
+
+    if (trackedFlight.passengers && trackedFlight.passengers > 1) {
+      searchOptions.passengers = trackedFlight.passengers;
+    }
+
     const settledQuotes = await Promise.allSettled(
       this.providers.map((provider) =>
         provider.getCheapestFlightInRange(
@@ -40,6 +76,7 @@ export class PriceMonitorService {
           trackedFlight.departure_date_start,
           trackedFlight.departure_date_end,
           trackedFlight.currency,
+          searchOptions,
         ),
       ),
     );

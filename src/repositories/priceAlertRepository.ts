@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 
-import type { PriceAlertInsert, PriceAlertRow } from "../types/flight";
+import type { PriceAlertInsert, PriceAlertRow } from "../types/flight.js";
 
 export class PriceAlertRepository {
   constructor(private readonly db: Database.Database) {}
