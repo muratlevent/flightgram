@@ -23,6 +23,7 @@ export interface TrackedFlightRow {
   departure_time_start: string | null;
   departure_time_end: string | null;
   passengers: number;
+  flexible_dates: boolean;
   // Price tracking
   target_price: number;
   currency: string;
@@ -51,6 +52,7 @@ export interface TrackedFlightInsert {
   departure_time_start?: string | null;
   departure_time_end?: string | null;
   passengers?: number;
+  flexible_dates?: boolean;
   // Price tracking
   target_price: number;
   currency: string;
@@ -104,6 +106,7 @@ export interface CreateTrackedFlightInput {
   departureTimeStart?: string | null;
   departureTimeEnd?: string | null;
   passengers?: number;
+  flexibleDates?: boolean;
   // Price tracking
   targetPrice: number;
   currency: string;

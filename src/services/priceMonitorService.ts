@@ -14,6 +14,7 @@ interface AlertCheckResult {
 
 export class PriceMonitorService {
   private static readonly ALERT_COOLDOWN_MS = 24 * 60 * 60 * 1_000;
+  private static readonly FLEXIBLE_DATE_DAYS = 3;
 
   constructor(
     private readonly trackedFlightRepository: TrackedFlightRepository,
@@ -46,6 +47,8 @@ export class PriceMonitorService {
       ReturnType<TrackedFlightRepository["listAllActiveFlights"]>
     >[number],
   ): Promise<void> {
+    const dateRange = this.getSearchDateRange(trackedFlight);
+
     // Build search options from tracked flight
     const searchOptions: FlightSearchOptions = {};
 
@@ -86,8 +89,8 @@ export class PriceMonitorService {
         provider.getCheapestFlightInRange(
           trackedFlight.origin_code,
           trackedFlight.destination_code,
-          trackedFlight.departure_date_start,
-          trackedFlight.departure_date_end,
+          dateRange.start,
+          dateRange.end,
           trackedFlight.currency,
           searchOptions,
         ),
@@ -129,9 +132,9 @@ export class PriceMonitorService {
     );
 
     const dateRangeStr =
-      trackedFlight.departure_date_start === trackedFlight.departure_date_end
-        ? trackedFlight.departure_date_start
-        : `${trackedFlight.departure_date_start} to ${trackedFlight.departure_date_end}`;
+      dateRange.start === dateRange.end
+        ? dateRange.start
+        : `${dateRange.start} to ${dateRange.end}`;
 
     if (!cheapestQuote) {
       console.info(
@@ -236,5 +239,42 @@ export class PriceMonitorService {
 
     const elapsedMs = Date.now() - new Date(lastAlert.sent_at).getTime();
     return elapsedMs >= PriceMonitorService.ALERT_COOLDOWN_MS;
+  }
+
+  private getSearchDateRange(
+    trackedFlight: TrackedFlightRow,
+  ): { start: string; end: string } {
+    let start = trackedFlight.departure_date_start;
+    let end = trackedFlight.departure_date_end;
+
+    if (trackedFlight.flexible_dates) {
+      start = this.shiftIsoDate(start, -PriceMonitorService.FLEXIBLE_DATE_DAYS);
+      end = this.shiftIsoDate(end, PriceMonitorService.FLEXIBLE_DATE_DAYS);
+
+      const today = this.getTodayIsoDate();
+      if (start < today) {
+        start = today;
+      }
+    }
+
+    if (end < start) {
+      end = start;
+    }
+
+    return { start, end };
+  }
+
+  private shiftIsoDate(isoDate: string, days: number): string {
+    const date = new Date(`${isoDate}T00:00:00.000Z`);
+    date.setUTCDate(date.getUTCDate() + days);
+    return date.toISOString().split("T")[0];
+  }
+
+  private getTodayIsoDate(): string {
+    const now = new Date();
+    const todayUtc = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
+    return todayUtc.toISOString().split("T")[0];
   }
 }

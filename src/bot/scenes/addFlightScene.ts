@@ -9,6 +9,7 @@ import {
   parseAirlines,
   parseCabinClass,
   parseDateRange,
+  parseFlexibleDatesToggle,
   parseMaxStops,
   parsePassengers,
   parsePositivePrice,
@@ -38,9 +39,11 @@ export const ADD_FLIGHT_SCENE_ID = "add-flight";
  * 6. Ask airlines - OPTIONAL
  * 7. Ask departure time window - OPTIONAL
  * 8. Ask passengers - OPTIONAL
- * 9. Ask target price
- * 10. Ask price drop percentage - OPTIONAL
- * 11. Ask currency - then create
+ * 9. Ask flexible dates toggle - OPTIONAL
+ * 10. Ask target price
+ * 11. Ask price drop percentage - OPTIONAL
+ * 12. Ask currency
+ * 13. Create tracker
  */
 
 export function createAddFlightScene(
@@ -337,7 +340,7 @@ export function createAddFlightScene(
       return ctx.wizard.next();
     },
 
-    // Step 9: Process passengers, ask target price
+    // Step 9: Process passengers, ask flexible dates toggle
     async (ctx) => {
       const text = getMessageText(ctx);
       if (!text) {
@@ -359,12 +362,39 @@ export function createAddFlightScene(
         draft.passengers = passengers;
       }
 
+      await ctx.reply(
+        "Use flexible date search?\n\n" +
+        "If enabled, we will check prices for +/- 3 days around your selected date range.\n\n" +
+        "1. Yes (+/- 3 days)\n" +
+        "2. No (exact dates only)\n\n" +
+        "Send 1 or 2."
+      );
+      return ctx.wizard.next();
+    },
+
+    // Step 10: Process flexible dates toggle, ask target price
+    async (ctx) => {
+      const text = getMessageText(ctx);
+      if (!text) {
+        await ctx.reply("Please send 1 or 2.");
+        return;
+      }
+
+      const flexibleDates = parseFlexibleDatesToggle(text);
+      if (flexibleDates === null) {
+        await ctx.reply("Invalid selection. Send 1 for yes or 2 for no.");
+        return;
+      }
+
+      const draft = ctx.wizard.state as AddFlightDraft;
+      draft.flexibleDates = flexibleDates;
+
       // Show summary of what we have so far
       const summaryParts = [
         `Route: ${draft.originCode} -> ${draft.destinationCode}`,
         `Departure: ${draft.departureDateStart}${draft.departureDateEnd !== draft.departureDateStart ? ` to ${draft.departureDateEnd}` : ""}`,
       ];
-      
+
       if (draft.returnDateStart) {
         summaryParts.push(`Return: ${draft.returnDateStart}${draft.returnDateEnd !== draft.returnDateStart ? ` to ${draft.returnDateEnd}` : ""}`);
       }
@@ -378,7 +408,7 @@ export function createAddFlightScene(
       return ctx.wizard.next();
     },
 
-    // Step 10: Process target price, ask price drop percentage
+    // Step 11: Process target price, ask price drop percentage
     async (ctx) => {
       const text = getMessageText(ctx);
       if (!text) {
@@ -404,7 +434,7 @@ export function createAddFlightScene(
       return ctx.wizard.next();
     },
 
-    // Step 11: Process price drop percentage, ask currency
+    // Step 12: Process price drop percentage, ask currency
     async (ctx) => {
       const text = getMessageText(ctx);
       if (!text) {
@@ -435,7 +465,7 @@ export function createAddFlightScene(
       return ctx.wizard.next();
     },
 
-    // Step 12: Process currency, create flight
+    // Step 13: Process currency, create flight
     async (ctx) => {
       const text = getMessageText(ctx);
       if (!text) {
@@ -486,6 +516,7 @@ export function createAddFlightScene(
           departureTimeStart: draft.departureTimeStart,
           departureTimeEnd: draft.departureTimeEnd,
           passengers: draft.passengers,
+          flexibleDates: draft.flexibleDates,
           targetPrice: draft.targetPrice,
           priceDropPercent: draft.priceDropPercent,
           currency: currencyCode,

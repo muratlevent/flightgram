@@ -273,6 +273,37 @@ export function parsePassengers(value: string): number | null {
 }
 
 /**
+ * Parse flexible dates toggle input.
+ * Accepts yes/no variants and 1/2 selection.
+ */
+export function parseFlexibleDatesToggle(value: string): boolean | null {
+  const normalized = value.trim().toLowerCase();
+
+  const trueValues = ["1", "yes", "y", "evet", "e", "true", "on"];
+  if (trueValues.includes(normalized)) {
+    return true;
+  }
+
+  const falseValues = [
+    "2",
+    "no",
+    "n",
+    "hayir",
+    "hayır",
+    "h",
+    "false",
+    "off",
+    "skip",
+    "-",
+  ];
+  if (falseValues.includes(normalized)) {
+    return false;
+  }
+
+  return null;
+}
+
+/**
  * Check if a value indicates "skip" for optional fields.
  */
 export function isSkip(value: string): boolean {

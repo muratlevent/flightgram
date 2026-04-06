@@ -62,6 +62,10 @@ export function formatTrackedFlightSummary(flight: TrackedFlightRow): string {
     lines.push(`Passengers: ${flight.passengers}`);
   }
 
+  if (flight.flexible_dates) {
+    lines.push("Flexible dates: +/- 3 days");
+  }
+
   lines.push(`Target price: ${formatMoney(Number(flight.target_price), flight.currency)}`);
 
   // Add price drop percentage if configured

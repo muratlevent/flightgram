@@ -22,6 +22,7 @@ interface RawTrackedFlightRow {
   departure_time_start: string | null;
   departure_time_end: string | null;
   passengers: number;
+  flexible_dates: number;
   target_price: number;
   currency: string;
   price_drop_percent: number | null;
@@ -46,6 +47,7 @@ function mapTrackedFlightRow(row: RawTrackedFlightRow): TrackedFlightRow {
     departure_time_start: row.departure_time_start,
     departure_time_end: row.departure_time_end,
     passengers: row.passengers,
+    flexible_dates: Boolean(row.flexible_dates),
     target_price: Number(row.target_price),
     currency: row.currency,
     price_drop_percent: row.price_drop_percent,
@@ -78,6 +80,7 @@ export class TrackedFlightRepository {
         departure_time_start,
         departure_time_end,
         passengers,
+        flexible_dates,
         target_price,
         currency,
         price_drop_percent,
@@ -99,6 +102,7 @@ export class TrackedFlightRepository {
         @departure_time_start,
         @departure_time_end,
         @passengers,
+        @flexible_dates,
         @target_price,
         @currency,
         @price_drop_percent,
@@ -122,6 +126,7 @@ export class TrackedFlightRepository {
       departure_time_start: payload.departure_time_start ?? null,
       departure_time_end: payload.departure_time_end ?? null,
       passengers: payload.passengers ?? 1,
+      flexible_dates: payload.flexible_dates ?? false ? 1 : 0,
       target_price: payload.target_price,
       currency: payload.currency,
       price_drop_percent: payload.price_drop_percent ?? null,

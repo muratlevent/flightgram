@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS tracked_flights (
   departure_time_start TEXT,  -- "06:00" format or NULL for any
   departure_time_end TEXT,    -- "20:00" format or NULL for any
   passengers INTEGER NOT NULL DEFAULT 1 CHECK (passengers >= 1 AND passengers <= 9),
+  -- Flexible date search (expand +/- 3 days around selected dates)
+  flexible_dates INTEGER NOT NULL DEFAULT 0 CHECK (flexible_dates IN (0, 1)),
   -- Price tracking
   target_price REAL NOT NULL CHECK (target_price > 0),
   currency TEXT NOT NULL,

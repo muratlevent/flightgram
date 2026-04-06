@@ -16,6 +16,7 @@ export interface AddFlightDraft {
   departureTimeStart?: string;
   departureTimeEnd?: string;
   passengers?: number;
+  flexibleDates?: boolean;
   // Target
   targetPrice?: number;
   // Percentage drop threshold (1-100)
