@@ -112,7 +112,7 @@ export function createAddFlightScene(
       return ctx.wizard.next();
     },
 
-    // Step 3: Process departure date, ask return date
+    // Step 3: Process departure date, check for duplicates, ask return date
     async (ctx) => {
       const text = getMessageText(ctx);
       if (!text) {
@@ -133,6 +133,28 @@ export function createAddFlightScene(
       const draft = ctx.wizard.state as AddFlightDraft;
       draft.departureDateStart = dateRange.start;
       draft.departureDateEnd = dateRange.end;
+
+      // Check for duplicate tracker
+      const userId = String(ctx.from?.id);
+      const duplicateCheck = await trackedFlightService.checkForDuplicate(
+        userId,
+        draft.originCode!,
+        draft.destinationCode!,
+        dateRange.start,
+        dateRange.end,
+      );
+
+      if (duplicateCheck.isDuplicate && duplicateCheck.existingFlight) {
+        const existing = duplicateCheck.existingFlight;
+        await ctx.reply(
+          "You already have a similar tracker:\n\n" +
+          `Route: ${existing.origin_code} -> ${existing.destination_code}\n` +
+          `Dates: ${existing.departure_date_start} to ${existing.departure_date_end}\n` +
+          `Target: ${existing.target_price} ${existing.currency}\n\n` +
+          "Continuing will create a new tracker anyway.\n" +
+          "Use /cancel to stop, or continue to add another."
+        );
+      }
 
       await ctx.reply(
         "Is this a round-trip? Send the return date or range.\n\n" +

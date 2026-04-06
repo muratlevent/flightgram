@@ -17,6 +17,12 @@ export class PriceMonitorService {
   ) {}
 
   async runCycle(): Promise<void> {
+    // First, deactivate any expired trackers
+    const expiredCount = await this.trackedFlightRepository.deactivateExpiredFlights();
+    if (expiredCount > 0) {
+      console.info(`[scheduler] Deactivated ${expiredCount} expired tracker(s).`);
+    }
+
     const trackedFlights = await this.trackedFlightRepository.listAllActiveFlights();
 
     console.info(

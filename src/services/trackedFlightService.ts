@@ -2,6 +2,11 @@ import type { CreateTrackedFlightInput, TrackedFlightRow } from "../types/flight
 import { TrackedFlightRepository } from "../repositories/trackedFlightRepository.js";
 import { UserRepository } from "../repositories/userRepository.js";
 
+export interface DuplicateCheckResult {
+  isDuplicate: boolean;
+  existingFlight?: TrackedFlightRow;
+}
+
 export class TrackedFlightService {
   constructor(
     private readonly userRepository: UserRepository,
@@ -14,6 +19,30 @@ export class TrackedFlightService {
     username?: string | null,
   ): Promise<void> {
     await this.userRepository.upsertUser(telegramId, username);
+  }
+
+  /**
+   * Check if a similar tracker already exists for this user.
+   */
+  async checkForDuplicate(
+    userId: string,
+    originCode: string,
+    destinationCode: string,
+    departureDateStart: string,
+    departureDateEnd: string,
+  ): Promise<DuplicateCheckResult> {
+    const existingFlight = await this.trackedFlightRepository.findDuplicateTracker(
+      userId,
+      originCode,
+      destinationCode,
+      departureDateStart,
+      departureDateEnd,
+    );
+
+    return {
+      isDuplicate: existingFlight !== null,
+      existingFlight: existingFlight ?? undefined,
+    };
   }
 
   async createTrackedFlight(

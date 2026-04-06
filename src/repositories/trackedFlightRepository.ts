@@ -189,4 +189,55 @@ export class TrackedFlightRepository {
 
     return trackedFlight ? mapTrackedFlightRow(trackedFlight) : null;
   }
+
+  /**
+   * Deactivate all trackers where the departure date has passed.
+   * Returns the number of trackers deactivated.
+   */
+  async deactivateExpiredFlights(): Promise<number> {
+    const today = new Date().toISOString().split("T")[0];
+    
+    const result = this.db
+      .prepare(`
+        UPDATE tracked_flights
+        SET is_active = 0
+        WHERE is_active = 1 AND departure_date_end < ?
+      `)
+      .run(today);
+
+    return result.changes;
+  }
+
+  /**
+   * Find existing active tracker with same route and overlapping dates.
+   */
+  async findDuplicateTracker(
+    userId: string,
+    originCode: string,
+    destinationCode: string,
+    departureDateStart: string,
+    departureDateEnd: string,
+  ): Promise<TrackedFlightRow | null> {
+    // Check for overlapping date ranges on same route
+    const row = this.db
+      .prepare(`
+        SELECT *
+        FROM tracked_flights
+        WHERE user_id = ?
+          AND origin_code = ?
+          AND destination_code = ?
+          AND is_active = 1
+          AND NOT (departure_date_end < ? OR departure_date_start > ?)
+        LIMIT 1
+      `)
+      .get(
+        userId,
+        originCode,
+        destinationCode,
+        departureDateStart,
+        departureDateEnd,
+      ) as RawTrackedFlightRow | undefined;
+
+    return row ? mapTrackedFlightRow(row) : null;
+  }
 }
