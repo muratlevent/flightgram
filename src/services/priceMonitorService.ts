@@ -1,8 +1,12 @@
 import type { FlightProvider } from "../providers/flightProvider.js";
+import {
+  BudgetRepository,
+  type UserBudgetRow,
+} from "../repositories/budgetRepository.js";
 import { PriceAlertRepository } from "../repositories/priceAlertRepository.js";
 import { PriceHistoryRepository } from "../repositories/priceHistoryRepository.js";
 import { TrackedFlightRepository } from "../repositories/trackedFlightRepository.js";
-import type { TrackedFlightRow } from "../types/flight.js";
+import type { ProviderFlightQuote, TrackedFlightRow } from "../types/flight.js";
 import type { FlightSearchOptions } from "../types/flightOptions.js";
 import { TelegramNotificationService } from "./telegramNotificationService.js";
 
@@ -12,23 +16,43 @@ interface AlertCheckResult {
   percentDrop?: number;
 }
 
+/** Track which budget alerts have been sent recently to avoid spam */
+interface BudgetAlertKey {
+  flightId: string;
+  userId: string;
+}
+
 export class PriceMonitorService {
   private static readonly ALERT_COOLDOWN_MS = 24 * 60 * 60 * 1_000;
   private static readonly FLEXIBLE_DATE_DAYS = 3;
+
+  /** Track budget alerts sent in the current cycle to avoid duplicates */
+  private budgetAlertsSentThisCycle = new Set<string>();
 
   constructor(
     private readonly trackedFlightRepository: TrackedFlightRepository,
     private readonly priceHistoryRepository: PriceHistoryRepository,
     private readonly priceAlertRepository: PriceAlertRepository,
+    private readonly budgetRepository: BudgetRepository,
     private readonly notificationService: TelegramNotificationService,
     private readonly providers: FlightProvider[],
   ) {}
 
   async runCycle(): Promise<void> {
+    // Reset budget alerts tracking for this cycle
+    this.budgetAlertsSentThisCycle.clear();
+
     // First, deactivate any expired trackers
     const expiredCount = await this.trackedFlightRepository.deactivateExpiredFlights();
     if (expiredCount > 0) {
       console.info(`[scheduler] Deactivated ${expiredCount} expired tracker(s).`);
+    }
+
+    // Load all user budgets for budget alert checking
+    const allBudgets = await this.budgetRepository.getAllBudgets();
+    const budgetsByUserId = new Map<string, UserBudgetRow>();
+    for (const budget of allBudgets) {
+      budgetsByUserId.set(budget.user_id, budget);
     }
 
     const trackedFlights = await this.trackedFlightRepository.listAllActiveFlights();
@@ -38,7 +62,8 @@ export class PriceMonitorService {
     );
 
     for (const trackedFlight of trackedFlights) {
-      await this.checkTrackedFlight(trackedFlight);
+      const userBudget = budgetsByUserId.get(trackedFlight.user_id);
+      await this.checkTrackedFlight(trackedFlight, userBudget);
     }
   }
 
@@ -46,6 +71,7 @@ export class PriceMonitorService {
     trackedFlight: Awaited<
       ReturnType<TrackedFlightRepository["listAllActiveFlights"]>
     >[number],
+    userBudget?: UserBudgetRow,
   ): Promise<void> {
     const dateRange = this.getSearchDateRange(trackedFlight);
 
@@ -186,6 +212,9 @@ export class PriceMonitorService {
         sent_at: cheapestQuote.checkedAt,
       });
     }
+
+    // Check budget alert (separate from target price alerts)
+    await this.checkBudgetAlert(trackedFlight, cheapestQuote, userBudget);
   }
 
   /**
@@ -276,5 +305,76 @@ export class PriceMonitorService {
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
     );
     return todayUtc.toISOString().split("T")[0];
+  }
+
+  /**
+   * Check if a flight is below the user's budget and send alert if so.
+   * Budget alerts are separate from target price alerts - they notify when
+   * ANY tracked flight drops below the user's global budget threshold.
+   */
+  private async checkBudgetAlert(
+    trackedFlight: TrackedFlightRow,
+    quote: ProviderFlightQuote,
+    userBudget?: UserBudgetRow,
+  ): Promise<void> {
+    // No budget set for this user
+    if (!userBudget) {
+      return;
+    }
+
+    // Currency mismatch - can't compare
+    if (userBudget.currency !== quote.currency) {
+      return;
+    }
+
+    // Price is not below budget
+    if (quote.price >= userBudget.budget_amount) {
+      return;
+    }
+
+    // Create a unique key for this flight+user combo to avoid duplicate alerts in same cycle
+    const alertKey = `${trackedFlight.id}:${trackedFlight.user_id}`;
+
+    if (this.budgetAlertsSentThisCycle.has(alertKey)) {
+      return;
+    }
+
+    // Check if we already sent a budget alert for this flight recently
+    // We use the same cooldown as regular alerts
+    const shouldNotify = await this.shouldSendAlert(
+      trackedFlight.id,
+      quote.price,
+    );
+
+    if (!shouldNotify) {
+      console.info(
+        `[scheduler] Budget alert suppressed for ${trackedFlight.id} (recent alert exists).`,
+      );
+      return;
+    }
+
+    // Send budget alert
+    await this.notificationService.sendBudgetAlert(
+      trackedFlight,
+      quote,
+      userBudget.budget_amount,
+    );
+
+    // Mark as sent this cycle
+    this.budgetAlertsSentThisCycle.add(alertKey);
+
+    // Record this as a regular alert to prevent duplicate notifications
+    await this.priceAlertRepository.recordAlert({
+      flight_id: trackedFlight.id,
+      provider_name: quote.providerName,
+      price: quote.price,
+      currency: quote.currency,
+      deep_link: quote.deepLink ?? null,
+      sent_at: quote.checkedAt,
+    });
+
+    console.info(
+      `[scheduler] Budget alert sent for ${trackedFlight.id}: ${quote.price} < ${userBudget.budget_amount} ${userBudget.currency}`,
+    );
   }
 }

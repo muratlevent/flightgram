@@ -1,10 +1,12 @@
 import { Scenes, Telegraf, session } from "telegraf";
 
+import type { BudgetService } from "../services/budgetService.js";
 import { FlightSearchService } from "../services/flightSearchService.js";
 import { PriceHistoryService } from "../services/priceHistoryService.js";
 import { TrackedFlightService } from "../services/trackedFlightService.js";
 import type { BotContext } from "./context.js";
 import { createAddFlightScene } from "./scenes/addFlightScene.js";
+import { createBudgetScene } from "./scenes/budgetScene.js";
 import { createCheapestDatesScene } from "./scenes/cheapestDatesScene.js";
 import { createDeleteFlightScene } from "./scenes/deleteFlightScene.js";
 import { createHistoryScene } from "./scenes/historyScene.js";
@@ -16,11 +18,13 @@ interface CreateBotOptions {
   trackedFlightService: TrackedFlightService;
   flightSearchService: FlightSearchService;
   priceHistoryService: PriceHistoryService;
+  budgetService: BudgetService;
 }
 
 export function createBot(options: CreateBotOptions): Telegraf<BotContext> {
   const bot = new Telegraf<BotContext>(options.token);
   const addFlightScene = createAddFlightScene(options.trackedFlightService);
+  const budgetScene = createBudgetScene(options.budgetService);
   const cheapestDatesScene = createCheapestDatesScene(options.flightSearchService);
   const deleteFlightScene = createDeleteFlightScene(options.trackedFlightService);
   const historyScene = createHistoryScene(
@@ -30,6 +34,7 @@ export function createBot(options: CreateBotOptions): Telegraf<BotContext> {
   const searchScene = createSearchScene(options.flightSearchService);
   const stage = new Scenes.Stage<BotContext>([
     addFlightScene,
+    budgetScene,
     cheapestDatesScene,
     deleteFlightScene,
     historyScene,
@@ -53,6 +58,7 @@ export function createBot(options: CreateBotOptions): Telegraf<BotContext> {
         "Use /add to create a new flight price tracker.",
         "Use /list to see your active trackers.",
         "Use /history to view price history for a tracker.",
+        "Use /budget to set a budget alert for all flights.",
         "Use /delete to remove a tracker.",
         "Use /cancel to stop the current conversation.",
       ].join("\n"),
@@ -84,6 +90,8 @@ export function createBot(options: CreateBotOptions): Telegraf<BotContext> {
   bot.command("delete", async (ctx) => ctx.scene.enter("delete-flight"));
 
   bot.command("history", async (ctx) => ctx.scene.enter("price-history"));
+
+  bot.command("budget", async (ctx) => ctx.scene.enter("budget"));
 
   bot.command("cancel", async (ctx) => {
     await ctx.reply("There is no active conversation to cancel right now.");

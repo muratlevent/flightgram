@@ -57,6 +57,15 @@ CREATE TABLE IF NOT EXISTS price_alerts (
   FOREIGN KEY (flight_id) REFERENCES tracked_flights (id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS user_budgets (
+  user_id TEXT PRIMARY KEY,
+  budget_amount REAL NOT NULL CHECK (budget_amount > 0),
+  currency TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  FOREIGN KEY (user_id) REFERENCES users (telegram_id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_tracked_flights_user_active
   ON tracked_flights (user_id, is_active);
 
